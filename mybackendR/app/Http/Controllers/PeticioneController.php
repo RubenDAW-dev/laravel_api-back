@@ -104,22 +104,57 @@ class PeticioneController extends Controller
             return $this->sendError('Error al crear la petición', $e->getMessage(), 500);
         }
     }
+public function update(Request $request, $id)
+{
+    try {
+        $peticion = Peticione::with('files')->findOrFail($id);
 
-    public function update(Request $request, $id)
-    {
-        try {
-            $peticion = Peticione::findOrFail($id);
-
-            if ($request->user()->cannot('update', $peticion)) {
-                return $this->sendError('No autorizado', [], 403);
-            }
-
-            $peticion->update($request->all());
-            return $this->sendResponse($peticion, 'Petición actualizada con éxito');
-        } catch (\Exception $e) {
-            return $this->sendError('Error al actualizar', $e->getMessage(), 500);
+        if ($request->user()->cannot('update', $peticion)) {
+            return $this->sendError('No autorizado', [], 403);
         }
+
+        $peticion->update($request->only([
+            'titulo',
+            'descripcion',
+            'destinatario',
+            'categoria_id'
+        ]));
+
+        if ($request->hasFile('file')) {
+
+            $file = $request->file('file');
+
+            $cleanName = str_replace(' ', '_', $file->getClientOriginalName());
+            $finalName = time() . '_' . $cleanName;
+
+            $path = $file->storeAs('peticiones', $finalName, 'public');
+
+            $fileRecord = $peticion->files()->first();
+
+            if ($fileRecord) {
+                Storage::disk('public')->delete($fileRecord->path);
+
+                $fileRecord->update([
+                    'filename' => $file->getClientOriginalName(),
+                    'path'     => $path
+                ]);
+            } else {
+                $peticion->files()->create([
+                    'filename' => $file->getClientOriginalName(),
+                    'path'     => $path
+                ]);
+            }
+        }
+
+        return $this->sendResponse(
+            $peticion->load(['files']),
+            'Petición actualizada con éxito'
+        );
+
+    } catch (\Exception $e) {
+        return $this->sendError('Error al actualizar', $e->getMessage(), 500);
     }
+}
 
     public function firmar(Request $request, $id)
     {
@@ -150,7 +185,7 @@ class PeticioneController extends Controller
             }
 
             foreach ($peticion->files as $file) {
-                Storage::disk('public')->delete($file->file_path);
+                Storage::disk('public')->delete($file->path);
             }
 
             $peticion->delete();
