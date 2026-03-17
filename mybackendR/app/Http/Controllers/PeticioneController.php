@@ -35,15 +35,25 @@ class PeticioneController extends Controller
         return response()->json($response, $code);
     }
 
-    public function index()
-    {
-        try {
-            $peticiones = Peticione::with(['user', 'categoria', 'files'])->get();
-            return $this->sendResponse($peticiones, 'Peticiones recuperadas con éxito');
-        } catch (\Exception $e) {
-            return $this->sendError('Error al recuperar peticiones', $e->getMessage(), 500);
-        }
+   public function index(Request $request)
+{
+    try {
+        $userId = Auth::id(); // null si no autenticado
+
+        $peticiones = Peticione::with(['user', 'categoria', 'files'])
+            ->get()
+            ->map(function ($p) use ($userId) {
+                $p->ya_firmado = $userId
+                    ? $p->firmas()->where('user_id', $userId)->exists()
+                    : false;
+                return $p;
+            });
+
+        return $this->sendResponse($peticiones, 'Peticiones recuperadas con éxito');
+    } catch (\Exception $e) {
+        return $this->sendError('Error al recuperar peticiones', $e->getMessage(), 500);
     }
+}
 
     public function listMine()
     {
@@ -70,40 +80,42 @@ class PeticioneController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'titulo' => 'required|max:255',
-            'descripcion' => 'required',
-            'destinatario' => 'required',
-            'categoria_id' => 'required|exists:categorias,id',
-            'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',
-        ]);
+{
+    $validator = Validator::make($request->all(), [
+        'titulo' => 'required|max:255',
+        'descripcion' => 'required',
+        'destinatario' => 'required',
+        'categoria_id' => 'required|exists:categorias,id',
+        'files.*' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',  // ← files.*
+    ]);
 
-        if ($validator->fails()) {
-            return $this->sendError('Error de validación', $validator->errors(), 422);
-        }
-
-        try {
-            $file = $request->file('file');
-            $path = $file->store('peticiones', 'public');
-
-            $peticion = new Peticione($request->all());
-            $peticion->user_id = Auth::id();
-            $peticion->firmantes = 0;
-            $peticion->estado = 'pendiente';
-            $peticion->save();
-
-            $peticion->files()->create([
-                'filename' => $file->getClientOriginalName(),
-                'path' => $path
-
-            ]);
-
-            return $this->sendResponse($peticion->load('files'), 'Petición creada con éxito', 201);
-        } catch (\Exception $e) {
-            return $this->sendError('Error al crear la petición', $e->getMessage(), 500);
-        }
+    if ($validator->fails()) {
+        return $this->sendError('Error de validación', $validator->errors(), 422);
     }
+
+    try {
+        $peticion = new Peticione($request->all());
+        $peticion->user_id = Auth::id();
+        $peticion->firmantes = 0;
+        $peticion->estado = 'pendiente';
+        $peticion->save();
+
+        // Guardar múltiples archivos
+        if ($request->hasFile('files')) {
+            foreach ($request->file('files') as $file) {
+                $path = $file->store('peticiones', 'public');
+                $peticion->files()->create([
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $path
+                ]);
+            }
+        }
+
+        return $this->sendResponse($peticion->load('files'), 'Petición creada con éxito', 201);
+    } catch (\Exception $e) {
+        return $this->sendError('Error al crear la petición', $e->getMessage(), 500);
+    }
+}
 public function update(Request $request, $id)
 {
     try {
