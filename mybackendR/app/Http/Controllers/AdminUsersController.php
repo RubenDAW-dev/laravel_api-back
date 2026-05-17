@@ -43,6 +43,25 @@ class AdminUsersController extends Controller
         return response()->json(['message' => 'Usuario actualizado correctamente', 'data' => $user]);
     }
 
+    public function createUser(Request $request)
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+            'role'     => 'required|in:user,admin',
+        ]);
+
+        $user = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => bcrypt($request->password),
+            'role'     => $request->role,
+        ]);
+
+        return response()->json(['message' => 'Usuario creado correctamente', 'data' => $user], 201);
+    }
+
     public function destroyUser($id)
     {
         $user = User::withCount(['peticiones', 'firmas'])->findOrFail($id);

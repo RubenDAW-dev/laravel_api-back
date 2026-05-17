@@ -86,7 +86,7 @@ class PeticioneController extends Controller
         'descripcion' => 'required',
         'destinatario' => 'required',
         'categoria_id' => 'required|exists:categorias,id',
-        'files.*' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',  // ← files.*
+        'files.*' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',
     ]);
 
     if ($validator->fails()) {
@@ -100,7 +100,6 @@ class PeticioneController extends Controller
         $peticion->estado = 'pendiente';
         $peticion->save();
 
-        // Guardar múltiples archivos
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
                 $path = $file->store('peticiones', 'public');

@@ -35,12 +35,14 @@ Route::middleware('auth:api')->group(function () {
 Route::middleware(['auth:api', 'is_admin'])->prefix('admin')->group(function () {
     // Peticiones
     Route::get('/peticiones',           [AdminController::class, 'indexPeticiones']);
+    Route::post('/peticiones',          [AdminController::class, 'createPeticion']);
     Route::get('/peticiones/{id}',      [AdminController::class, 'showPeticion']);
-    Route::post('/peticiones/{id}',     [AdminController::class, 'updatePeticion']);
+    Route::put('/peticiones/{id}',      [AdminController::class, 'updatePeticion']);
     Route::delete('/peticiones/{id}',   [AdminController::class, 'destroyPeticion']);
 
     // Usuarios
     Route::get('/users',         [AdminUsersController::class, 'getUsers']);
+    Route::post('/users',        [AdminUsersController::class, 'createUser']);
     Route::get('/users/{id}',    [AdminUsersController::class, 'showUser']);
     Route::put('/users/{id}',    [AdminUsersController::class, 'updateUser']);
     Route::delete('/users/{id}', [AdminUsersController::class, 'destroyUser']);

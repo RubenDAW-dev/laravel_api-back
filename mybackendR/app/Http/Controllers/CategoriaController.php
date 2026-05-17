@@ -11,7 +11,7 @@ class CategoriaController extends Controller
     public function index(): JsonResponse
     {
         $cats = Categoria::query()
-            ->select(['id', 'nombre'])   // ajusta a tu esquema real
+            ->select(['id', 'nombre'])
             ->orderBy('nombre')
             ->get();
 
